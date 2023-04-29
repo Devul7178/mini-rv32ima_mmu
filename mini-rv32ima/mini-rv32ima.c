@@ -6,7 +6,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "default64mbdtc.h"
+#include "default64mbdtc2.h"
 
 // Just default RAM amount is 64MB.
 uint32_t ram_amt = 64*1024*1024;
@@ -265,8 +265,11 @@ restart:
 	core->pc = MINIRV32_RAM_IMAGE_OFFSET;
 
 	// r10 and r11 are used to pass arguments
+	core->regs[5] = 0x80000000; 
 	core->regs[10] = 0x00; //hart ID (hardware thread id)
 	core->regs[11] = dtb_ptr?(dtb_ptr+MINIRV32_RAM_IMAGE_OFFSET):0; //dtb_pa (Must be valid pointer) (Should be pointer to dtb)
+	core->regs[12] = 0x1028;
+	core->pmpaddr0 = -1;
 	core->extraflags |= 3; // Machine-mode.
 
 	// default ram is being used. 
@@ -300,6 +303,7 @@ restart:
 
 	// Executes a loop that runs instructions on a MiniRV32 processor core
 	// runs either a fixed number of instructions or indefinitely
+	// instct+1 || instct < 0
 	for( rt = 0; rt < instct+1 || instct < 0; rt += instrs_per_flip )
 	{
 		// elapsedUs represents the amount of time (in microseconds) in the real world that has elapsed 
@@ -315,11 +319,13 @@ restart:
 			elapsedUs = GetTimeMicroseconds()/time_divisor - lastTime;
 		lastTime += elapsedUs;
 
-		if( single_step )
+		if( single_step) {
+			printf("rt: %ld\n", rt);
 			DumpState( core, ram_image);
+		}
 
 		// execute instructions
-		int ret = MiniRV32IMAStep( core, ram_image, 0, elapsedUs, instrs_per_flip ); // Execute upto 1024 cycles before breaking out.
+		int ret = MiniRV32IMAStep( core, ram_image, 0, elapsedUs, instrs_per_flip, rt ); // Execute upto 1024 cycles before breaking out.
 		switch( ret )
 		{	
 			// continue executing instructions
@@ -670,19 +676,19 @@ static void DumpState( struct MiniRV32IMAState * core, uint8_t * ram_image )
 	uint32_t pc_offset = pc - MINIRV32_RAM_IMAGE_OFFSET;
 	uint32_t ir = 0;
 
-	printf( "PC: %08x ", pc );
+	// printf( "PC: %08x ", pc );
 
 	// if pc offset is within the range of ram_image, ir is set to to the instruction at the pc_offset.
 	// Otherwise print xxxxxxxxxx.
-	if( pc_offset >= 0 && pc_offset < ram_amt - 3 )
-	{
-		ir = *((uint32_t*)(&((uint8_t*)ram_image)[pc_offset]));
+	// if( pc_offset >= 0 && pc_offset < ram_amt - 3 )
+	// {
+	// 	ir = *((uint32_t*)(&((uint8_t*)ram_image)[pc_offset]));
 
-		// %08x means hexadecimal format, zero-padded with at least 8 digits and enclosed in square brackets and prefixed with '0x'
-		printf( "[0x%08x] ", ir ); 
-	}
-	else
-		printf( "[xxxxxxxxxx] " ); 
+	// 	// %08x means hexadecimal format, zero-padded with at least 8 digits and enclosed in square brackets and prefixed with '0x'
+	// 	printf( "[0x%08x] ", ir ); 
+	// }
+	// else
+	// 	printf( "[xxxxxxxxxx] " ); 
 
 	/**
 	 * prints the values of the CPU registers (32 regs). The registers are:
@@ -697,11 +703,11 @@ static void DumpState( struct MiniRV32IMAState * core, uint8_t * ram_image )
 	 */
 
 	uint32_t * regs = core->regs;
-	printf( "Z:%08x ra:%08x sp:%08x gp:%08x tp:%08x t0:%08x t1:%08x t2:%08x s0:%08x s1:%08x a0:%08x a1:%08x a2:%08x a3:%08x a4:%08x a5:%08x ",
-		regs[0], regs[1], regs[2], regs[3], regs[4], regs[5], regs[6], regs[7],
-		regs[8], regs[9], regs[10], regs[11], regs[12], regs[13], regs[14], regs[15] );
-	printf( "a6:%08x a7:%08x s2:%08x s3:%08x s4:%08x s5:%08x s6:%08x s7:%08x s8:%08x s9:%08x s10:%08x s11:%08x t3:%08x t4:%08x t5:%08x t6:%08x\n",
-		regs[16], regs[17], regs[18], regs[19], regs[20], regs[21], regs[22], regs[23],
-		regs[24], regs[25], regs[26], regs[27], regs[28], regs[29], regs[30], regs[31] );
+	printf( "ra             0x%x	0x%x\nsp             0x%x	0x%x\ngp             0x%x	0x%x\ntp             0x%x	0x%x\nt0             0x%x	%d\nt1             0x%x	%d\nt2             0x%x	%d\nfp             0x%x	0x%x\ns1             0x%x	%d\na0             0x%x	%d\na1             0x%x	%d\na2             0x%x	%d\na3             0x%x	%d\na4             0x%x	%d\na5             0x%x	%d\n",
+		regs[1], regs[1], regs[2], regs[2], regs[3], regs[3], regs[4], regs[4], regs[5], regs[5], regs[6], regs[6], regs[7], regs[7],
+		regs[8], regs[8], regs[9], regs[9], regs[10], regs[10], regs[11], regs[11], regs[12], regs[12], regs[13], regs[13], regs[14], regs[14], regs[15], regs[15] );
+	printf( "a6             0x%x	%d\na7             0x%x	%d\ns2             0x%x	%d\ns3             0x%x	%d\ns4             0x%x	%d\ns5             0x%x	%d\ns6             0x%x	%d\ns7             0x%x	%d\ns8             0x%x	%d\ns9             0x%x	%d\ns10            0x%x	%d\ns11            0x%x	%d\nt3             0x%x	%d\nt4             0x%x	%d\nt5             0x%x	%d\nt6             0x%x	%d\npc             0x%x	0x%x\n\n",
+		regs[16], regs[16], regs[17], regs[17], regs[18], regs[18], regs[19], regs[19], regs[20], regs[20], regs[21], regs[21], regs[22], regs[22], regs[23],  regs[23],
+		regs[24], regs[24], regs[25], regs[25], regs[26], regs[26], regs[27], regs[27], regs[28], regs[28], regs[29], regs[29], regs[30], regs[30], regs[31], regs[31], pc, pc );
 }
 

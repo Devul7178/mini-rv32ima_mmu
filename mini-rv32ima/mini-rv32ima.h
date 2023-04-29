@@ -134,6 +134,8 @@ struct MiniRV32IMAState
 	uint32_t mcause;		// machine trap cause register, which stores the cause of the most recent trap or exception.
 
 	uint32_t satp; 
+
+	uint32_t pmpaddr0;
 	// Note: only a few bits are used.  (Machine = 3, User = 0)
 	// Bits 0..1 = privilege.
 	// Bit 2 = WFI (Wait for interrupt)
@@ -141,7 +143,7 @@ struct MiniRV32IMAState
 	uint32_t extraflags;
 };
 
-MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count );
+MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count, uint32_t rt);
 
 #ifdef MINIRV32_IMPLEMENTATION
 
@@ -344,7 +346,7 @@ uint64_t mmu_translate(struct MiniRV32IMAState * state, uint32_t vpn_addr, uint3
 }
 
 // vProcAddress is the virtual address (set to 0 for now since nommu), count is instr_per_flip it is either 0 or 1024
-MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count )
+MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count, uint32_t rt)
 {
 	//. If the timer value overflows, the upper 32 bits are incremented. 
 	// For instance if timerl is 0xFFFFFFFE and time elapsed is 4. Then timerh will be 0x00000001 and timerl is 0x00000002 (overflow wrap around 0)
@@ -429,11 +431,11 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 
 			ir = MINIRV32_LOAD4( paddr );
 
-			if (icount == 992){
-				printf("hello");
-			}
+			// if (icount == 850){
+			// 	printf("hello");
+			// }	
 
-			printf("ir: %x  icount: %d\n", ir, icount)
+			// printf("ir: %x  icount: %d  ofs_pc: %x rt: %d\n", ir, icount, ofs_pc, rt);
 			
 			// destination register
 			uint32_t rdid = (ir >> 7) & 0x1f;
@@ -469,6 +471,7 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					if( immm4 & 0x1000 ) immm4 |= 0xffffe000;
 					int32_t rs1 = REG((ir >> 15) & 0x1f);
 					int32_t rs2 = REG((ir >> 20) & 0x1f);
+					// printf("rs1: %d rs2: %d\n", rs1, rs2);
 					immm4 = pc + immm4 - 4;
 					// set to 00, because we don't want to write anything to rd in branches
 					rdid = 0;
@@ -481,8 +484,6 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 						case 0b110: if( (uint32_t)rs1 < (uint32_t)rs2 ) pc = immm4; break;	//BLTU
 						case 0b111: if( (uint32_t)rs1 >= (uint32_t)rs2 ) pc = immm4; break;	//BGEU
 						default: trap = trap_exit_code(ILLEGAL_INSTR, 0);					//Illegal instruction
-
-						
 					}
 					break;
 				}
@@ -546,6 +547,10 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					{
 						uint64_t paddr = mmu_translate(state, rsval, LOAD, image, &trap);
 
+						// if (rt == 7096) {
+						// 	printf("rsval: %d paddr: %d rval: %d\n", rsval, paddr, MINIRV32_LOAD1( paddr ));
+						// }
+
 						if (trap != 0){
 							rval = rsval;
 							break;
@@ -570,6 +575,7 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					// sw -> m16(rs1+imms)←rs2[15:0], pc←pc+4
 					uint32_t rs1 = REG((ir >> 15) & 0x1f);
 					uint32_t rs2 = REG((ir >> 20) & 0x1f);
+					// printf("rs1: %d rs2: %d\n", rs1, rs2);
 					uint32_t addy = ( ( ir >> 7 ) & 0x1f ) | ( ( ir & 0xfe000000 ) >> 20 );
 					if( addy & 0x800 ) addy |= 0xfffff000;
 					addy += rs1 - MINIRV32_RAM_IMAGE_OFFSET;
@@ -644,6 +650,8 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					// If the 6th bit is 1 then it is a R type instruction, if it is 0 it is an I type instruction
 					uint32_t rs2 = is_reg ? REG(imm & 0x1f) : imm;
 
+					// printf("rs1: %d rs2: %d\n", rs1, rs2);
+
 					//0x02000000 = RV32M. This is the RV32M extention to RV32I. 
 					if( is_reg && ( ir & 0x02000000 ) )
 					{
@@ -712,8 +720,9 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 							case 0x343: rval = CSR( mtval ); break;
 							case 0x180: rval = CSR( satp ); break;
 							case 0xf11: rval = 0xff0ff0ff; break; //machine vendor id -> https://five-embeddev.com/riscv-isa-manual/latest/machine.html#machine-vendor-id-register-mvendorid
-							case 0x301: rval = 0x40401101; break; //machine ISA reg (XLEN=32, IMA+X) -> https://five-embeddev.com/riscv-isa-manual/latest/machine.html#sec:misa
-							//case 0x3B0: rval = 0; break; //pmpaddr0
+							case 0x301: rval = 0x4014112d; break; //machine ISA reg (XLEN=32, IMA+X) -> https://five-embeddev.com/riscv-isa-manual/latest/machine.html#sec:misa
+							case 0x3B0: rval = CSR( pmpaddr0 ); break; //pmpaddr0
+							case 0x3c0: rval = pc;
 							//case 0x3a0: rval = 0; break; //pmpcfg0
 							//case 0xf12: rval = 0x00000000; break; //marchid
 							//case 0xf13: rval = 0x00000000; break; //mimpid
@@ -746,8 +755,9 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 							case 0x342: SETCSR( mcause, writeval ); break;
 							case 0x343: SETCSR( mtval, writeval ); break;
 							case 0x180: SETCSR( satp, writeval ); break;
+							// case 0x301: SETCSR( misa, writeval ); break;
 							//case 0x3a0: break; //pmpcfg0
-							//case 0x3B0: break; //pmpaddr0
+							case 0x3B0: SETCSR( pmpaddr0, writeval ); break; //pmpaddr0
 							//case 0xf11: break; //mvendorid
 							//case 0xf12: break; //marchid
 							//case 0xf13: break; //mimpid
@@ -808,6 +818,7 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 				{
 					uint32_t rs1 = REG((ir >> 15) & 0x1f);
 					uint32_t rs2 = REG((ir >> 20) & 0x1f);
+					// printf("rs1: %d rs2: %d\n", rs1, rs2);
 					uint32_t irmid = ( ir>>27 ) & 0x1f;
 
 					rs1 -= MINIRV32_RAM_IMAGE_OFFSET;
