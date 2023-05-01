@@ -269,7 +269,7 @@ restart:
 	core->regs[10] = 0x00; //hart ID (hardware thread id)
 	core->regs[11] = dtb_ptr?(dtb_ptr+MINIRV32_RAM_IMAGE_OFFSET):0; //dtb_pa (Must be valid pointer) (Should be pointer to dtb)
 	core->regs[12] = 0x1028;
-	core->pmpaddr0 = -1;
+	// core->pmpaddr0 = -1;
 	core->extraflags |= 3; // Machine-mode.
 
 	// default ram is being used. 
@@ -676,7 +676,7 @@ static void DumpState( struct MiniRV32IMAState * core, uint8_t * ram_image )
 	uint32_t pc_offset = pc - MINIRV32_RAM_IMAGE_OFFSET;
 	uint32_t ir = 0;
 
-	// printf( "PC: %08x ", pc );
+	printf( "PC: %08x ", pc );
 
 	// if pc offset is within the range of ram_image, ir is set to to the instruction at the pc_offset.
 	// Otherwise print xxxxxxxxxx.
@@ -703,11 +703,42 @@ static void DumpState( struct MiniRV32IMAState * core, uint8_t * ram_image )
 	 */
 
 	uint32_t * regs = core->regs;
-	printf( "ra             0x%x	0x%x\nsp             0x%x	0x%x\ngp             0x%x	0x%x\ntp             0x%x	0x%x\nt0             0x%x	%d\nt1             0x%x	%d\nt2             0x%x	%d\nfp             0x%x	0x%x\ns1             0x%x	%d\na0             0x%x	%d\na1             0x%x	%d\na2             0x%x	%d\na3             0x%x	%d\na4             0x%x	%d\na5             0x%x	%d\n",
-		regs[1], regs[1], regs[2], regs[2], regs[3], regs[3], regs[4], regs[4], regs[5], regs[5], regs[6], regs[6], regs[7], regs[7],
-		regs[8], regs[8], regs[9], regs[9], regs[10], regs[10], regs[11], regs[11], regs[12], regs[12], regs[13], regs[13], regs[14], regs[14], regs[15], regs[15] );
-	printf( "a6             0x%x	%d\na7             0x%x	%d\ns2             0x%x	%d\ns3             0x%x	%d\ns4             0x%x	%d\ns5             0x%x	%d\ns6             0x%x	%d\ns7             0x%x	%d\ns8             0x%x	%d\ns9             0x%x	%d\ns10            0x%x	%d\ns11            0x%x	%d\nt3             0x%x	%d\nt4             0x%x	%d\nt5             0x%x	%d\nt6             0x%x	%d\npc             0x%x	0x%x\n\n",
-		regs[16], regs[16], regs[17], regs[17], regs[18], regs[18], regs[19], regs[19], regs[20], regs[20], regs[21], regs[21], regs[22], regs[22], regs[23],  regs[23],
-		regs[24], regs[24], regs[25], regs[25], regs[26], regs[26], regs[27], regs[27], regs[28], regs[28], regs[29], regs[29], regs[30], regs[30], regs[31], regs[31], pc, pc );
+
+	// printf(" pc       %08x\n", core->pc);
+	// printf(" mhartid  %08x\n", 0);
+	// printf(" mstatus  %08x\n", core->mstatus & 0xffffffff);
+	// printf(" mstatush %08x\n", core->mstatus >> 32);
+	// printf(" mip      %08x\n", core->mip);
+	// printf(" mie      %08x\n", core->mie);
+	// printf(" mideleg  %08x\n", core->mideleg);
+	// printf(" medeleg  %08x\n", core->medeleg);
+	// printf(" mtvec    %08x\n", core->mtvec);
+	// printf(" stvec    %08x\n", core->stvec);
+	// printf(" mepc     %08x\n", core->mepc);
+	// printf(" sepc     %08x\n", core->sepc);
+	// printf(" mcause   %08x\n", core->mcause);
+	// printf(" scause   %08x\n", core->scause);
+	// printf(" mtval    %08x\n", core->mtval);
+	// printf(" stval    %08x\n", core->stval);
+	// printf(" mscratch %08x\n", core->mscratch);
+	// printf(" sscratch %08x\n", core->sscratch);
+	// printf(" satp     %08x\n", core->satp);
+	// printf(" x0/zero  %08x x1/ra    %08x x2/sp    %08x x3/gp    %08x\n", core->regs[0], core->regs[1], core->regs[2], core->regs[3]);
+	// printf(" x4/tp    %08x x5/t0    %08x x6/t1    %08x x7/t2    %08x\n", core->regs[4], core->regs[5], core->regs[6], core->regs[7]);
+	// printf(" x8/s0    %08x x9/s1    %08x x10/a0   %08x x11/a1   %08x\n", core->regs[8], core->regs[9], core->regs[10], core->regs[11]);
+	// printf(" x12/a2   %08x x13/a3   %08x x14/a4   %08x x15/a5   %08x\n", core->regs[12], core->regs[13], core->regs[14], core->regs[15]);
+	// printf(" x16/a6   %08x x17/a7   %08x x18/s2   %08x x19/s3   %08x\n", core->regs[16], core->regs[17], core->regs[18], core->regs[19]);
+	// printf(" x20/s4   %08x x21/s5   %08x x22/s6   %08x x23/s7   %08x\n", core->regs[20], core->regs[21], core->regs[22], core->regs[23]);
+	// printf(" x24/s8   %08x x25/s9   %08x x26/s10  %08x x27/s11  %08x\n", core->regs[24], core->regs[25], core->regs[26], core->regs[27]);
+	// printf(" x28/t3   %08x x29/t4   %08x x30/t5   %08x x31/t6   %08x\n\n", core->regs[28], core->regs[29], core->regs[30], core->regs[31]);
+
+
+
+	// printf( "ra             0x%x	0x%x\nsp             0x%x	0x%x\ngp             0x%x	0x%x\ntp             0x%x	0x%x\nt0             0x%x	%d\nt1             0x%x	%d\nt2             0x%x	%d\nfp             0x%x	0x%x\ns1             0x%x	%d\na0             0x%x	%d\na1             0x%x	%d\na2             0x%x	%d\na3             0x%x	%d\na4             0x%x	%d\na5             0x%x	%d\n",
+	// 	regs[1], regs[1], regs[2], regs[2], regs[3], regs[3], regs[4], regs[4], regs[5], regs[5], regs[6], regs[6], regs[7], regs[7],
+	// 	regs[8], regs[8], regs[9], regs[9], regs[10], regs[10], regs[11], regs[11], regs[12], regs[12], regs[13], regs[13], regs[14], regs[14], regs[15], regs[15] );
+	// printf( "a6             0x%x	%d\na7             0x%x	%d\ns2             0x%x	%d\ns3             0x%x	%d\ns4             0x%x	%d\ns5             0x%x	%d\ns6             0x%x	%d\ns7             0x%x	%d\ns8             0x%x	%d\ns9             0x%x	%d\ns10            0x%x	%d\ns11            0x%x	%d\nt3             0x%x	%d\nt4             0x%x	%d\nt5             0x%x	%d\nt6             0x%x	%d\npc             0x%x	0x%x\n\n",
+	// 	regs[16], regs[16], regs[17], regs[17], regs[18], regs[18], regs[19], regs[19], regs[20], regs[20], regs[21], regs[21], regs[22], regs[22], regs[23],  regs[23],
+	// 	regs[24], regs[24], regs[25], regs[25], regs[26], regs[26], regs[27], regs[27], regs[28], regs[28], regs[29], regs[29], regs[30], regs[30], regs[31], regs[31], pc, pc );
 }
 

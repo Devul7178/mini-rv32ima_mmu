@@ -2,8 +2,8 @@ EXE:=coremark
 
 all : $(EXE)
 
-CC:=../../buildroot/output/host/bin/riscv32-buildroot-linux-uclibc-gcc
-OBJDUMP:=../../buildroot/output/host/bin/riscv32-buildroot-linux-uclibc-objdump
+CC:=../../buildroot/output/host/bin/riscv32-buildroot-linux-gnu-gcc
+OBJDUMP:=../../buildroot/output/host/bin/riscv32-buildroot-linux-gnu-objdump
 
 CFLAGS?=-march=rv32ima -mabi=ilp32 -fPIE -pie -Os -s -static
 LDFLAGS?=-Wl,-elf2flt="-r -s 32768" --entry main

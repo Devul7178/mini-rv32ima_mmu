@@ -30,7 +30,15 @@ testbare :
 	make -C mini-rv32ima testbare
 
 test_with_qemu :
-	cd buildroot/output/images && qemu-system-riscv32 -M virt -bios fw_jump.elf -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic
+	# cd buildroot/output/images && qemu-system-riscv32 -M virt,dumpdtb=virt.dtb -bios fw_payload.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic
+	# cd buildroot/output/images && qemu-system-riscv32 -M virt -bios fw_payload.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic -machine dumpdtb=dtb.dtb
+	# cd buildroot/output/images && qemu-system-riscv32 -M virt -bios fw_jump.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic -dtb sixtyfourmb2.dtb > qemu_output.txt 2>&1
+	cd buildroot/output/images && qemu-system-riscv32 -M virt -bios fw_jump.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic -dtb sixtyfourmb2.dtb
+
+	
+test_with_qemu_debug :
+	cd buildroot/output/images && qemu-system-riscv32 -gdb tcp::1234 -S -M virt -bios fw_jump.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic -dtb sixtyfourmb2.dtb
+	# cd buildroot/output/images && qemu-system-riscv32 -M virt -bios fw_jump.bin -kernel Image -drive file=rootfs.cpio,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -nographic -dtb sixtyfourmb2.dtb -d cpu
 
 
 ##################################################################

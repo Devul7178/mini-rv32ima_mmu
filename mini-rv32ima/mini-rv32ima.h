@@ -135,7 +135,22 @@ struct MiniRV32IMAState
 
 	uint32_t satp; 
 
-	uint32_t pmpaddr0;
+	// uint32_t pmpaddr0;
+
+	uint32_t mideleg;
+
+	uint32_t medeleg;
+
+	uint32_t stvec;
+
+	uint32_t sepc;
+
+	uint32_t scause;
+
+	uint32_t stval;
+
+	uint32_t sscratch;
+
 	// Note: only a few bits are used.  (Machine = 3, User = 0)
 	// Bits 0..1 = privilege.
 	// Bit 2 = WFI (Wait for interrupt)
@@ -518,14 +533,15 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					if( rsval >= MINI_RV32_RAM_SIZE-3 )
 					{
 						rsval += MINIRV32_RAM_IMAGE_OFFSET;
-						if( rsval >= 0x10000000 && rsval < 0x12000000 ) 
+						
+						if( rsval == 0x0200bffc || rsval == 0x0200bff8 || rsval == 0x10000005 || rsval == 0x10000000 ) 
 						{
 							// the mtime clint control register provides the current timer value. 
 							// lower 32 bits goes to 0xbff8 and upper bits goes to 0xbffc
 							// We assume that 0x1100 is the base 
-							if( rsval == 0x1100bffc ) // https://chromitem-soc.readthedocs.io/en/latest/clint.html
+							if( rsval == 0x0200bffc ) // https://chromitem-soc.readthedocs.io/en/latest/clint.html
 								rval = CSR( timerh );
-							else if( rsval == 0x1100bff8 )
+							else if( rsval == 0x0200bff8 )
 								rval = CSR( timerl );
 							
 							// If the address is 0x10000005 or 0x10000000, then we read from UART MMIO reg by using UART load.
@@ -587,19 +603,20 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 					if( addy >= MINI_RV32_RAM_SIZE-3 )
 					{
 						addy += MINIRV32_RAM_IMAGE_OFFSET;
-						if( addy >= 0x10000000 && addy < 0x12000000 )
+						
+						if(addy == 0x0200bffc || addy == 0x0200bff8 || addy == 0x100000 || addy == 0x10000000 )
 						{
 							// The CLNT mtimecmp register is located at 0x11004000 to 0x11004004 
 							// This register holds the compare value for the timer (timermatch)
 							// Should be stuff like SYSCON, 8250, CLNT
-							if( addy == 0x11004004 ) //CLNT
+							if( addy == 0x02004004 ) //CLNT
 								CSR( timermatchh ) = rs2;
-							else if( addy == 0x11004000 ) //CLNT
+							else if( addy == 0x02004000 ) //CLNT
 								CSR( timermatchl ) = rs2;
 							// syscon (system configuration) are some MMIO regs used by LINUX to:
 							// shutdown -> sw rs2, 0(rs1) -> where rs2 will be 3 and rs1 will 0x11100000
 							// restart -> sw rs2, 0(rs1) -> where rs2 will be x7777 and rs1 will 0x11100000
-							else if( addy == 0x11100000 )
+							else if( addy == 0x100000 )
 							{
 								SETCSR( pc, pc + 4 );
 								return rs2; // NOTE: PC will be PC of Syscon.
@@ -721,8 +738,14 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 							case 0x180: rval = CSR( satp ); break;
 							case 0xf11: rval = 0xff0ff0ff; break; //machine vendor id -> https://five-embeddev.com/riscv-isa-manual/latest/machine.html#machine-vendor-id-register-mvendorid
 							case 0x301: rval = 0x4014112d; break; //machine ISA reg (XLEN=32, IMA+X) -> https://five-embeddev.com/riscv-isa-manual/latest/machine.html#sec:misa
-							case 0x3B0: rval = CSR( pmpaddr0 ); break; //pmpaddr0
-							case 0x3c0: rval = pc;
+							case 0x302: rval = CSR( mideleg ); break;
+							case 0x303: rval = CSR( medeleg ); break;
+							case 0x105: rval = CSR( stvec ); break;
+							case 0x141: rval = CSR( sepc ); break;
+							case 0x142: rval = CSR( scause ); break;
+							case 0x143: rval = CSR( stval ); break;
+							case 0x140: rval = CSR( sscratch ); break;
+							// case 0x3B0: rval = CSR( pmpaddr0 ); break; //pmpaddr0
 							//case 0x3a0: rval = 0; break; //pmpcfg0
 							//case 0xf12: rval = 0x00000000; break; //marchid
 							//case 0xf13: rval = 0x00000000; break; //mimpid
@@ -755,9 +778,17 @@ MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState * state, uint
 							case 0x342: SETCSR( mcause, writeval ); break;
 							case 0x343: SETCSR( mtval, writeval ); break;
 							case 0x180: SETCSR( satp, writeval ); break;
+							case 0x302: SETCSR( mideleg, writeval ); break;
+							case 0x303: SETCSR( medeleg, writeval ); break;
+							case 0x105: SETCSR( stvec, writeval ); break;
+							case 0x141: SETCSR( sepc, writeval ); break;
+							case 0x142: SETCSR( scause, writeval ); break; //mstatus
+							case 0x143: SETCSR( stval, writeval ); break;
+							case 0x140: SETCSR( sscratch, writeval ); break;
+
 							// case 0x301: SETCSR( misa, writeval ); break;
 							//case 0x3a0: break; //pmpcfg0
-							case 0x3B0: SETCSR( pmpaddr0, writeval ); break; //pmpaddr0
+							// case 0x3B0: SETCSR( pmpaddr0, writeval ); break; //pmpaddr0
 							//case 0xf11: break; //mvendorid
 							//case 0xf12: break; //marchid
 							//case 0xf13: break; //mimpid

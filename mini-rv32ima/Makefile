@@ -1,8 +1,8 @@
 all : mini-rv32ima mini-rv32ima.flt
 
-mini-rv32ima : mini-rv32ima.c mini-rv32ima.h default64mbdtc.h
+mini-rv32ima : mini-rv32ima.c mini-rv32ima.h default64mbdtc2.h
 	# for debug
-	gcc -o $@ $< -g -O2 -Wall
+	gcc -o $@ $< -g -O0 -Wall
 	gcc -o $@.tiny $< -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -fwhole-program -s
 
 mini-rv32ima.flt : mini-rv32ima.c mini-rv32ima.h
@@ -41,7 +41,9 @@ DownloadedImage :
 	mv Image DownloadedImage
 
 testdlimage : mini-rv32ima
-	./mini-rv32ima -f Image -x fw_jump.bin
+	cp ../buildroot/output/images/Image ./
+	cp ../buildroot/output/images/fw_payload.bin ./
+	./mini-rv32ima -f Image -x fw_payload.bin
 
 # For dumping specific binaries and info.
 # SBI is not currently working
@@ -52,17 +54,29 @@ testdlimage : mini-rv32ima
 
 # For converting the .dtb into a .h file for embeddding.
 bintoh :
-	echo "#include <stdio.h>" > bintoh.c
-	echo "int main(int argc,char ** argv) {if(argc==1) return -1; int c, p=0; printf( \"static const unsigned char %s[] = {\", argv[1] ); while( ( c = getchar() ) != EOF ) printf( \"0x%02x,%c\", c, (((p++)&15)==15)?10:' '); printf( \"};\" ); return 0; }" >> bintoh.c
+	# echo "#include <stdio.h>" > bintoh.c
+	# echo "int main(int argc,char ** argv) {if(argc==1) return -1; int c, p=0; printf( \"static const unsigned char %s[] = {\", argv[1] ); while( ( c = getchar() ) != EOF ) printf( \"0x%02x,%c\", c, (((p++)&15)==15)?10:' '); printf( \"};\" ); return 0; }" >> bintoh.c
+	rm bintoh
 	gcc bintoh.c -o bintoh
 
-default64mbdtc.h : sixtyfourmb.dtb bintoh
-	./bintoh default64mbdtb < $< > $@
+default64mbdtc2.h : bintoh	
+	# rm default64mbdtc2.h		
+	# rm sixtyfourmb2.dtb
+	# make sixtyfourmb2.dtb
+	./bintoh sixtyfourmb2.dtb > default64mbdtc2.h
+	# ./bintoh sixtyfourmb2 < $< > $@
+	# ./bintoh default64mbdtb < $< > $@
+	# ./bintoh virt < $< > $@
+	# ./bintoh sixtyfourmb2 < $< > $@
 	# WARNING: sixtyfourmb.dtb MUST hvave at least 16 bytes of buffer room AND be 16-byte aligned.
 	#  dtc -I dts -O dtb -o sixtyfourmb.dtb sixtyfourmb.dts -S 1536
 
-sixtyfourmb.dtb : sixtyfourmb.dts
-	dtc -I dts -O dtb -o $@ $^
+sixtyfourmb2.dtb :
+	# rm sixtyfourmb2.dtb
+	# dtc -I dts -O virt -o $@ $^	
+	dtc -I dts -O dtb -f sixtyfourmb2.dts -o sixtyfourmb2.dtb
+	rm ../buildroot/output/images/sixtyfourmb2.dtb
+	cp sixtyfourmb2.dtb ../buildroot/output/images
 
 dumpkern :
 	../buildroot/output/host/bin/riscv32-buildroot-linux-uclibc-objdump -S ../buildroot/output/build/linux-5.18/vmlinux >fw_payload.S
